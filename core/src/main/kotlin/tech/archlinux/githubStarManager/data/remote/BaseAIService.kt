@@ -1,0 +1,19 @@
+package tech.archlinux.githubStarManager.data.remote
+
+import io.ktor.client.*
+import tech.archlinux.githubStarManager.data.model.BasicContent
+import tech.archlinux.githubStarManager.data.model.OpenAICompletionResponse
+
+/**
+ * Abstract class for AI services
+ * @param model the model to use
+ * @param client the http client to use
+ */
+interface BaseAIService {
+    /**
+     * Generate content from a prompt
+     * @param messages the prompt to use
+     * @return the generated content
+     */
+    suspend fun generateContent(messages: List<BasicContent>): OpenAICompletionResponse
+}
