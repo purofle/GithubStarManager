@@ -4,14 +4,19 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import tech.archlinux.githubStarManager.data.remote.GeminiService
+import org.slf4j.LoggerFactory
+import tech.archlinux.githubStarManager.data.model.BasicContent
 import tech.archlinux.githubStarManager.data.remote.GithubApiService
+import tech.archlinux.githubStarManager.data.remote.OpenAIService
 
 fun main() {
+
+    val logger = LoggerFactory.getLogger("main")
 
     val baseClient = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -19,6 +24,7 @@ fun main() {
                 ignoreUnknownKeys = true
             })
         }
+        install(Logging)
         defaultRequest {
             header("Content-Type", "application/json")
         }
@@ -38,9 +44,19 @@ fun main() {
     }
 
     val api = GithubApiService(githubAPIClient)
-    val ai = GeminiService(apiKey = System.getenv("GEMINI_KEY"), client = baseClient)
     runBlocking {
-        val stars = api.listUserStarredRepos()
-        println(ai.generateContent("你妈死了"))
+        val ai = OpenAIService(
+            model = "gemini-2.0-flash",
+            client = baseClient,
+            apiKey = System.getenv("GEMINI_KEY"),
+            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai"
+        )
+        val content = ai.generateContent(
+            listOf(BasicContent(
+                content = "我草死你妈",
+                role = "user"
+            ))
+        )
+        logger.info(content.toString())
     }
 }
