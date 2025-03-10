@@ -5,9 +5,7 @@ import tech.archlinux.githubStarManager.data.model.BasicContent
 import tech.archlinux.githubStarManager.data.model.OpenAICompletionResponse
 
 /**
- * Abstract class for AI services
- * @param model the model to use
- * @param client the http client to use
+ * Base class for AI services
  */
 interface BaseAIService {
     /**
