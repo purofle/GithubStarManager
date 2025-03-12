@@ -13,5 +13,8 @@
         <Root level="DEBUG">
             <AppenderRef ref="Console"/>
         </Root>
+        <Logger name="io.ktor.client.HttpClient" level="INFO">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

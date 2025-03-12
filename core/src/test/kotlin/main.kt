@@ -7,10 +7,10 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import tech.archlinux.githubStarManager.data.model.BasicContent
 import tech.archlinux.githubStarManager.data.remote.GithubApiService
 import tech.archlinux.githubStarManager.data.remote.OpenAIService
 
@@ -51,12 +51,7 @@ fun main() {
             apiKey = System.getenv("GEMINI_KEY"),
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai"
         )
-        val content = ai.generateContent(
-            listOf(BasicContent(
-                content = "我草死你妈",
-                role = "user"
-            ))
-        )
-        logger.info(content.toString())
+        val starredRepos = GithubApiService(githubAPIClient).listUserStarredRepos().toList()
+        logger.info("Get ${starredRepos.size} starred repos")
     }
 }
