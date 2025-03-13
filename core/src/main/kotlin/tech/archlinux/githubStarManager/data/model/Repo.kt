@@ -15,5 +15,6 @@ data class Repo(
     val id: Int,
     val name: String,
     @SerialName("full_name") val fullName: String,
-    val owner: Owner
+    val owner: Owner,
+    val description: String? = "",
 )
