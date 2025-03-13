@@ -13,7 +13,7 @@
         <Root level="DEBUG">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="io.ktor.client.HttpClient" level="INFO">
+        <Logger name="io.ktor.client.HttpClient" level="WARN">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

@@ -18,3 +18,19 @@ data class CompletionChoice(
     val index: Int,
     val message: BasicContent,
 )
+
+@Serializable
+data class CreateEmbeddings(
+    val input: String,
+    val model: String
+)
+
+@Serializable
+data class EmbeddingResponse(
+    val data: List<Embedding>
+)
+
+@Serializable
+data class Embedding(
+    val embedding: List<Float>
+)

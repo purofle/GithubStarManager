@@ -10,10 +10,12 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import tech.archlinux.githubStarManager.data.model.BasicContent
 import tech.archlinux.githubStarManager.data.remote.GithubApiService
 import tech.archlinux.githubStarManager.data.remote.OpenAIService
+import tech.archlinux.githubStarManager.sql.ConnManager
 
 fun main() {
 
@@ -47,15 +49,15 @@ fun main() {
         }
     }
 
-    val api = GithubApiService(githubAPIClient)
     runBlocking {
         val ai = OpenAIService(
             model = "gemini-2.0-flash",
+            embeddingModel = "gemini-embedding-exp-03-07",
             client = baseClient,
             apiKey = System.getenv("GEMINI_KEY"),
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai"
         )
-        GithubApiService(githubAPIClient).listUserStarredRepos().take(20).collect {
+        GithubApiService(githubAPIClient).listUserStarredRepos().take(50).collect {
             val aiText = "repo name: ${it.repo.fullName}, description: ${it.repo.description}"
             val completion = ai.generateContent(
                 listOf(
@@ -70,7 +72,19 @@ fun main() {
                     )
                 )
             )
-            logger.info("Generated content: ${completion.choices.first().message.content}")
+
+            val generatedContent = completion.choices.first().message.content ?: "No content generated"
+
+            logger.info("generated content: $generatedContent")
+
+            val embeddings = ai.createEmbeddings(generatedContent)
+            try {
+                ConnManager.insertRepo(it.repo.fullName, embeddings)
+            } catch (e: PSQLException) {
+                logger.error("Error inserting repo", e)
+            }
         }
+
+        ConnManager.close()
     }
 }

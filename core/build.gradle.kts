@@ -23,6 +23,9 @@ dependencies {
 
     implementation(libs.apache.logging.log4j.core)
     implementation(libs.apache.logging.log4j.slf4j2.impl)
+
+    implementation(libs.pgvector.pgvector)
+    implementation(libs.postgresql.r2dbc)
 }
 
 tasks.test {
