@@ -41,6 +41,17 @@ object ConnManager {
         }
     }
 
+    fun searchRepo(embedding: List<Float>) {
+        val stmt = conn.prepareStatement("SELECT repo FROM repo WHERE embedding <=> ? < 0.8 ORDER BY embedding <-> ?")
+        stmt.setObject(1, PGvector(embedding))
+        stmt.setObject(2, PGvector(embedding))
+        val rs = stmt.executeQuery()
+
+        while (rs.next()) {
+            println("Repo: ${rs.getString(1)}")
+        }
+    }
+
     fun close() {
         conn.close()
     }

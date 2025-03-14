@@ -51,12 +51,14 @@ fun main() {
 
     runBlocking {
         val ai = OpenAIService(
-            model = "gemini-2.0-flash",
-            embeddingModel = "gemini-embedding-exp-03-07",
+            model = "gpt-4o-mini",
+            embeddingModel = "text-embedding-3-large",
             client = baseClient,
-            apiKey = System.getenv("GEMINI_KEY"),
-            baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai"
+            apiKey = System.getenv("OAPI_KEY"),
+            baseUrl = "https://oapi.baka.plus/v1"
         )
+
+
         GithubApiService(githubAPIClient).listUserStarredRepos().take(50).collect {
             val aiText = "repo name: ${it.repo.fullName}, description: ${it.repo.description}"
             val completion = ai.generateContent(
@@ -84,7 +86,7 @@ fun main() {
                 logger.error("Error inserting repo", e)
             }
         }
-
-        ConnManager.close()
     }
+
+    ConnManager.close()
 }
