@@ -19,7 +19,7 @@ object ConnManager {
 
     fun createTable(vectorSize: Int) {
         val stmt = conn.createStatement()
-        stmt.execute("CREATE TABLE IF NOT EXISTS repo (id SERIAL PRIMARY KEY, repo text not null unique, embedding vector($vectorSize))")
+        stmt.execute("CREATE TABLE IF NOT EXISTS repo (id SERIAL PRIMARY KEY, repo text not null unique, repo_description text not null, embedding vector($vectorSize))")
     }
 
     fun dropTable() {
@@ -39,6 +39,16 @@ object ConnManager {
         } else {
             0
         }
+    }
+
+    fun getAllRepoName(): List<String> {
+        val stmt = conn.createStatement()
+        val query = stmt.executeQuery("SELECT repo.repo FROM repo")
+        val repoList = mutableListOf<String>()
+        while (query.next()) {
+            repoList.add(query.getString(1))
+        }
+        return repoList
     }
 
     fun searchRepo(embedding: List<Float>) {
