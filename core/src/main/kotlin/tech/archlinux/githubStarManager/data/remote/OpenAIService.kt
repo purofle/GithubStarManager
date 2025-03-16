@@ -12,6 +12,7 @@ class OpenAIService(
     private val embeddingModel: String,
     var client: HttpClient,
     val baseUrl : String = "https://api.openai.com/v1",
+    val embeddingBaseUrl: String = baseUrl,
     apiKey: String,
 ): BaseAIService {
 
@@ -28,18 +29,27 @@ class OpenAIService(
         }
     }
 
-    override suspend fun generateContent(messages: List<BasicContent>): OpenAICompletionResponse {
+    override suspend fun generateContent(
+        messages: List<BasicContent>,
+        tools: List<LLMFunction>
+    ): OpenAICompletionResponse {
         return client.post("$baseUrl/chat/completions") {
             val body = OpenAICompletion(
                 model = model,
-                messages = messages
+                messages = messages,
+                tools = tools.map {
+                    FunctionCall(
+                        type = "function",
+                        function = it
+                    )
+                }
             )
             setBody(body)
         }.body()
     }
 
     override suspend fun createEmbeddings(text: String): List<Float> {
-        val response: EmbeddingResponse = client.post("$baseUrl/embeddings") {
+        val response: EmbeddingResponse = client.post("$embeddingBaseUrl/embeddings") {
             setBody(
                 CreateEmbeddings(
                     input = text,

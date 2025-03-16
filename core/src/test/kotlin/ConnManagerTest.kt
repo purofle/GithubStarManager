@@ -50,7 +50,7 @@ class ConnManagerTest {
         )
 
         runBlocking {
-            val embedding = ai.createEmbeddings("业余无线电相关")
+            val embedding = ai.createEmbeddings("列出所有包括无线电的内容")
             searchRepo(embedding)
         }
     }

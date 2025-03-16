@@ -1,92 +1,120 @@
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
-import io.ktor.client.plugins.auth.*
-import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import org.postgresql.util.PSQLException
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import tech.archlinux.githubStarManager.data.model.BasicContent
-import tech.archlinux.githubStarManager.data.remote.GithubApiService
+import tech.archlinux.githubStarManager.data.model.functionCall
 import tech.archlinux.githubStarManager.data.remote.OpenAIService
 import tech.archlinux.githubStarManager.sql.ConnManager
 
+val logger: Logger = LoggerFactory.getLogger("main")
+
+val baseClient = HttpClient(CIO) {
+    install(ContentNegotiation) {
+        json(Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        })
+    }
+    install(Logging) {
+        level = LogLevel.ALL
+    }
+    defaultRequest {
+        header("Content-Type", "application/json")
+    }
+}
+
+val ai = OpenAIService(
+    model = "gpt-4o-mini",
+    embeddingModel = "text-embedding-3-large",
+    client = baseClient,
+    apiKey = System.getenv("OAPI_KEY"),
+    baseUrl = "https://oapi.baka.plus/v1",
+    embeddingBaseUrl = "https://oapi.baka.plus/v1"
+)
+
 fun main() {
-
-    val logger = LoggerFactory.getLogger("main")
-
-    val baseClient = HttpClient(CIO) {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-            })
-        }
-        install(Logging) {
-            level = LogLevel.ALL
-
-        }
-        defaultRequest {
-            header("Content-Type", "application/json")
-        }
-    }
-
-    val githubAPIClient = baseClient.config {
-        install(Auth) {
-            bearer {
-                loadTokens {
-                    BearerTokens(System.getenv("GITHUB_TOKEN"), null)
-                }
-            }
-        }
-        defaultRequest {
-            header("Accept", "application/vnd.github.star+json")
-        }
-    }
+//    val githubAPIClient = baseClient.config {
+//        install(Auth) {
+//            bearer {
+//                loadTokens {
+//                    BearerTokens(System.getenv("GITHUB_TOKEN"), null)
+//                }
+//            }
+//        }
+//        defaultRequest {
+//            header("Accept", "application/vnd.github.star+json")
+//        }
+//    }
 
     runBlocking {
-        val ai = OpenAIService(
-            model = "gpt-4o-mini",
-            embeddingModel = "text-embedding-3-large",
-            client = baseClient,
-            apiKey = System.getenv("OAPI_KEY"),
-            baseUrl = "https://oapi.baka.plus/v1"
-        )
 
+        processRepo("purofle/sb", "No description")
 
-        GithubApiService(githubAPIClient).listUserStarredRepos().take(50).collect {
-            val aiText = "repo name: ${it.repo.fullName}, description: ${it.repo.description}"
-            val completion = ai.generateContent(
-                listOf(
-                    BasicContent(
-                        content = "You will play as a GitHub expert. Your role is to summarize the GitHub repository information I give you and summarize it into one sentence. When the information I give you is insufficient, you will use the get_readme function to get the readme.\n" +
-                                "In your output, you need to include the full name of the project, followed by your summary. The summary needs to be comprehensive and detailed.",
-                        role = "system",
-                    ),
-                    BasicContent(
-                        content = aiText,
-                        role = "user",
-                    )
-                )
-            )
+//        val repoFlow = GithubApiService(githubAPIClient).listUserStarredRepos()
+//        val repoList = ConnManager.getAllRepoName()
+//        println(repoFlow.toList().take(500).map { "github.com/${it.repo.fullName}" }.joinToString("\n"))
 
-            val generatedContent = completion.choices.first().message.content ?: "No content generated"
+        ConnManager.close()
+    }
+}
 
-            logger.info("generated content: $generatedContent")
+suspend fun <T> retryWithDelay(
+    times: Int = 3,
+    initialDelay: Long = 1000L,
+    factor: Double = 2.0,
+    block: suspend () -> T
+): T {
+    var currentDelay = initialDelay
+    repeat(times - 1) { attempt ->
+        try {
+            return block()
+        } catch (e: Exception) {
+            logger.warn("Attempt ${attempt + 1} failed, retrying in $currentDelay ms...", e)
+        }
+        delay(currentDelay)
+        currentDelay = (currentDelay * factor).toLong() // 指数回退
+    }
+    return block() // 最后一次尝试
+}
 
-            val embeddings = ai.createEmbeddings(generatedContent)
-            try {
-                ConnManager.insertRepo(it.repo.fullName, embeddings)
-            } catch (e: PSQLException) {
-                logger.error("Error inserting repo", e)
-            }
+suspend fun processRepo(fullName: String, repoDescription: String): String = retryWithDelay {
+    val aiText = "repo name: ${fullName}, description: $repoDescription"
+
+    val getReadmeFunction = functionCall {
+        name = "get_readme"
+        description = "Get the README of a GitHub repository"
+
+        parameter("repo" to "string") {
+            description = "The full name of the repository"
         }
     }
 
-    ConnManager.close()
+    val completion = ai.generateContent(
+        listOf(
+            BasicContent(
+                content = "你将要扮演一个GitHub专家，为你点过Star的项目进行分类，你可以选择将项目归类到一个或多个类别中，也可以选择不归类。" +
+                        "我将会提供给你项目的全名和描述。当你没有足够的信息进行分类时候，你可以调用 get_readme 以获取项目的README。",
+                role = "system",
+            ),
+            BasicContent(
+                content = aiText,
+                role = "user",
+            )
+        ),
+        tools = listOf(getReadmeFunction)
+    )
+
+    val generatedContent = completion.choices.first().message.content ?: "No content generated"
+    logger.info("generated content: $generatedContent")
+
+    return@retryWithDelay generatedContent
 }

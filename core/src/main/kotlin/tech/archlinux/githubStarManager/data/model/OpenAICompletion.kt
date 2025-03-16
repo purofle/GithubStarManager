@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class OpenAICompletion(
     val model: String,
     val messages: List<BasicContent>,
+    val tools: List<FunctionCall> = listOf(),
 )
 
 @Serializable
