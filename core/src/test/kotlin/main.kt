@@ -5,6 +5,7 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
+import io.r2dbc.spi.Parameter.In
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -37,7 +38,7 @@ val ai = OpenAIService(
     embeddingModel = "text-embedding-3-large",
     client = baseClient,
     apiKey = System.getenv("OAPI_KEY"),
-    baseUrl = "https://oapi.baka.plus/v1",
+    baseUrl = "https://api.deepseek.com",
     embeddingBaseUrl = "https://oapi.baka.plus/v1"
 )
 
@@ -93,8 +94,8 @@ suspend fun processRepo(fullName: String, repoDescription: String): String = ret
         name = "get_readme"
         description = "Get the README of a GitHub repository"
 
-        parameter("repo" to "string") {
-            description = "The full name of the repository"
+        function<String, Int>("repo", "The full name of the repository") { a, b ->
+
         }
     }
 

@@ -33,7 +33,7 @@ class OpenAIService(
         messages: List<BasicContent>,
         tools: List<LLMFunction>
     ): OpenAICompletionResponse {
-        return client.post("$baseUrl/chat/completions") {
+        val completion: OpenAICompletionResponse = client.post("$baseUrl/chat/completions") {
             val body = OpenAICompletion(
                 model = model,
                 messages = messages,
@@ -46,6 +46,28 @@ class OpenAIService(
             )
             setBody(body)
         }.body()
+
+//        if (completion.choices[0].finishReason == "stop") {
+            return completion
+//        }
+//        if (completion.choices[0].finishReason == "function_call") {
+//            val functionCall = completion.choices[0].message.functionCall
+//            val functionName = functionCall.name
+//            val arguments = functionCall.arguments
+//
+//            val function = tools.find { it.name == functionName }
+//            if (function != null) {
+//                val result = function.call(arguments)
+//                return generateContent(
+//                    messages = listOf(
+//                        BasicContent(
+//                            role = "user",
+//                            content = result
+//                        )
+//                    )
+//                )
+//            }
+//        }
     }
 
     override suspend fun createEmbeddings(text: String): List<Float> {

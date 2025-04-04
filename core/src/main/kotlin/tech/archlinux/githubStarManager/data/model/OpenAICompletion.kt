@@ -1,5 +1,6 @@
 package tech.archlinux.githubStarManager.data.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,6 +19,7 @@ data class OpenAICompletionResponse(
 data class CompletionChoice(
     val index: Int,
     val message: BasicContent,
+    @SerialName("finish_reason") val finishReason: String,
 )
 
 @Serializable
