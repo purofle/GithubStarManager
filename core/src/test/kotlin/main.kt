@@ -57,7 +57,7 @@ suspend fun processRepo(fullName: String, repoDescription: String): String {
             val repo: String = param { name = "repo"; description = "the repo description" }
             logger.info("get_readme function called with repo: $repo")
 
-            return@function "purofle/sb: there is nothing"
+            return@function "there is nothing"
         }
     }
 

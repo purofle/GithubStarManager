@@ -5,9 +5,11 @@ import io.ktor.client.call.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import tech.archlinux.githubStarManager.data.model.*
 
@@ -51,6 +53,7 @@ class OpenAIService(
                     )
                 }
             )
+            logger.debug("Request: {}", Json.encodeToString(body))
             setBody(body)
         }.body()
         logger.debug("Completion: {}", completion)
@@ -66,14 +69,14 @@ class OpenAIService(
             processedResults.add(completion.choices[0].message)
 
             val functionCall = completion.choices[0].message.toolCalls!!
-            functionCall.forEach {
-                val functionName = it.function.name
-                val functionArgs = it.function.arguments
+            functionCall.forEach { f ->
+                val functionName = f.function.name
+                val functionArgs = f.function.arguments
 
                 logger.debug("FunctionCall: {}", functionName)
                 logger.debug("FunctionArgs: {}", functionArgs)
 
-                tools.find { it.function.name == it.function.name }?.let { function ->
+                tools.find { f.function.name == it.function.name }?.let { function ->
                     val argMap = Json.decodeFromString<Map<String, JsonElement>>(functionArgs)
                         .mapValues { (_, value) ->
                             when (value) {
@@ -88,7 +91,7 @@ class OpenAIService(
                         BasicContent(
                             content = result.toString(),
                             role = "tool",
-                            toolCallId = it.id,
+                            toolCallId = f.id,
                         )
                     )
                 }
@@ -115,6 +118,6 @@ class OpenAIService(
     }
 
     companion object {
-        val logger = LoggerFactory.getLogger(OpenAIService::class.java)
+        val logger: Logger = LoggerFactory.getLogger(OpenAIService::class.java)
     }
 }

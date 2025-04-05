@@ -14,6 +14,8 @@ data class BasicContent(
 
 @Serializable
 data class ToolCall(
+    val index: Int,
+    val type: String,
     val id: String,
     val function: ToolCallFunction,
 )
