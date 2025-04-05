@@ -5,8 +5,6 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
-import io.r2dbc.spi.Parameter.In
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
@@ -14,7 +12,6 @@ import org.slf4j.LoggerFactory
 import tech.archlinux.githubStarManager.data.model.BasicContent
 import tech.archlinux.githubStarManager.data.model.functionCall
 import tech.archlinux.githubStarManager.data.remote.OpenAIService
-import tech.archlinux.githubStarManager.sql.ConnManager
 
 val logger: Logger = LoggerFactory.getLogger("main")
 
@@ -34,7 +31,7 @@ val baseClient = HttpClient(CIO) {
 }
 
 val ai = OpenAIService(
-    model = "gpt-4o-mini",
+    model = "deepseek-chat",
     embeddingModel = "text-embedding-3-large",
     client = baseClient,
     apiKey = System.getenv("OAPI_KEY"),
@@ -43,59 +40,24 @@ val ai = OpenAIService(
 )
 
 fun main() {
-//    val githubAPIClient = baseClient.config {
-//        install(Auth) {
-//            bearer {
-//                loadTokens {
-//                    BearerTokens(System.getenv("GITHUB_TOKEN"), null)
-//                }
-//            }
-//        }
-//        defaultRequest {
-//            header("Accept", "application/vnd.github.star+json")
-//        }
-//    }
-
     runBlocking {
-
         processRepo("purofle/sb", "No description")
-
-//        val repoFlow = GithubApiService(githubAPIClient).listUserStarredRepos()
-//        val repoList = ConnManager.getAllRepoName()
-//        println(repoFlow.toList().take(500).map { "github.com/${it.repo.fullName}" }.joinToString("\n"))
-
-        ConnManager.close()
     }
 }
 
-suspend fun <T> retryWithDelay(
-    times: Int = 3,
-    initialDelay: Long = 1000L,
-    factor: Double = 2.0,
-    block: suspend () -> T
-): T {
-    var currentDelay = initialDelay
-    repeat(times - 1) { attempt ->
-        try {
-            return block()
-        } catch (e: Exception) {
-            logger.warn("Attempt ${attempt + 1} failed, retrying in $currentDelay ms...", e)
-        }
-        delay(currentDelay)
-        currentDelay = (currentDelay * factor).toLong() // 指数回退
-    }
-    return block() // 最后一次尝试
-}
-
-suspend fun processRepo(fullName: String, repoDescription: String): String = retryWithDelay {
+suspend fun processRepo(fullName: String, repoDescription: String): String {
     val aiText = "repo name: ${fullName}, description: $repoDescription"
 
     val getReadmeFunction = functionCall {
         name = "get_readme"
         description = "Get the README of a GitHub repository"
 
-        function<String, Int>("repo", "The full name of the repository") { a, b ->
+        function<String> {
+            // put your implementation here
+            val repo: String = param { name = "repo"; description = "the repo description" }
+            logger.info("get_readme function called with repo: $repo")
 
+            return@function "purofle/sb: there is nothing"
         }
     }
 
@@ -117,5 +79,5 @@ suspend fun processRepo(fullName: String, repoDescription: String): String = ret
     val generatedContent = completion.choices.first().message.content ?: "No content generated"
     logger.info("generated content: $generatedContent")
 
-    return@retryWithDelay generatedContent
+    return generatedContent
 }

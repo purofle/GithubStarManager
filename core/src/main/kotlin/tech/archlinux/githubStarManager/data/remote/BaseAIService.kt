@@ -1,7 +1,7 @@
 package tech.archlinux.githubStarManager.data.remote
 
 import tech.archlinux.githubStarManager.data.model.BasicContent
-import tech.archlinux.githubStarManager.data.model.LLMFunction
+import tech.archlinux.githubStarManager.data.model.FunctionCall
 import tech.archlinux.githubStarManager.data.model.OpenAICompletionResponse
 
 /**
@@ -15,7 +15,7 @@ interface BaseAIService {
      */
     suspend fun generateContent(
         messages: List<BasicContent>,
-        tools: List<LLMFunction> = listOf()
+        tools: List<FunctionCall> = listOf()
     ): OpenAICompletionResponse
     suspend fun createEmbeddings(text: String): List<Float>
 }

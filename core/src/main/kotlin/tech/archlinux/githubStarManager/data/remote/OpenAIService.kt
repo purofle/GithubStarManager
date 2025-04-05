@@ -5,6 +5,10 @@ import io.ktor.client.call.*
 import io.ktor.client.plugins.auth.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import org.slf4j.LoggerFactory
 import tech.archlinux.githubStarManager.data.model.*
 
 class OpenAIService(
@@ -31,7 +35,7 @@ class OpenAIService(
 
     override suspend fun generateContent(
         messages: List<BasicContent>,
-        tools: List<LLMFunction>
+        tools: List<FunctionCall>
     ): OpenAICompletionResponse {
         val completion: OpenAICompletionResponse = client.post("$baseUrl/chat/completions") {
             val body = OpenAICompletion(
@@ -39,35 +43,62 @@ class OpenAIService(
                 messages = messages,
                 tools = tools.map {
                     FunctionCall(
-                        type = "function",
-                        function = it
+                        function = LLMFunction(
+                            name = it.function.name,
+                            description = it.function.description,
+                            parameters = it.function.parameters
+                        )
                     )
                 }
             )
             setBody(body)
         }.body()
-
-//        if (completion.choices[0].finishReason == "stop") {
+        logger.debug("Completion: {}", completion)
+//        return completion
+        if (completion.choices[0].finishReason == "stop") {
             return completion
-//        }
-//        if (completion.choices[0].finishReason == "function_call") {
-//            val functionCall = completion.choices[0].message.functionCall
-//            val functionName = functionCall.name
-//            val arguments = functionCall.arguments
-//
-//            val function = tools.find { it.name == functionName }
-//            if (function != null) {
-//                val result = function.call(arguments)
-//                return generateContent(
-//                    messages = listOf(
-//                        BasicContent(
-//                            role = "user",
-//                            content = result
-//                        )
-//                    )
-//                )
-//            }
-//        }
+        }
+        if (completion.choices[0].finishReason == "tool_calls") {
+
+            val processedResults = mutableListOf<BasicContent>()
+
+            processedResults.addAll(messages)
+            processedResults.add(completion.choices[0].message)
+
+            val functionCall = completion.choices[0].message.toolCalls!!
+            functionCall.forEach {
+                val functionName = it.function.name
+                val functionArgs = it.function.arguments
+
+                logger.debug("FunctionCall: {}", functionName)
+                logger.debug("FunctionArgs: {}", functionArgs)
+
+                tools.find { it.function.name == it.function.name }?.let { function ->
+                    val argMap = Json.decodeFromString<Map<String, JsonElement>>(functionArgs)
+                        .mapValues { (_, value) ->
+                            when (value) {
+                                is JsonPrimitive -> value.content
+                                else -> value.toString()
+                            }
+                        }
+                    val result = function.functionBody(argMap)
+                    logger.debug("FunctionResult: {}", result)
+
+                    processedResults.add(
+                        BasicContent(
+                            content = result.toString(),
+                            role = "tool",
+                            toolCallId = it.id,
+                        )
+                    )
+                }
+            }
+
+            return generateContent(processedResults, tools)
+        } else {
+            logger.error("Error: ${completion.choices[0].finishReason}")
+            throw IllegalStateException("Error: ${completion.choices[0].finishReason}")
+        }
     }
 
     override suspend fun createEmbeddings(text: String): List<Float> {
@@ -81,5 +112,9 @@ class OpenAIService(
         }.body()
 
         return response.data[0].embedding
+    }
+
+    companion object {
+        val logger = LoggerFactory.getLogger(OpenAIService::class.java)
     }
 }
